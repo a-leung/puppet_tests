@@ -15,10 +15,12 @@
 
   $database = {
     development => {
+      database => 'development',
       username => 'test',
       password => 'test'
     },
     test => {
+      database => 'test',
       username => 'test',
       password => 'test'
     }
@@ -30,20 +32,16 @@
       postgres_password => 'postgres';
   }
 
-  # Make the databases.
-  # postgresql::server::db {
-  #   $database[test][database]:
-  #     user     => $database[test][username],
-  #     password => postgresql_password($database[test][username], $database[test][password]);
-  #   $database[development][database]:
-  #     user     => $database[development][username],
-  #     password => postgresql_password($database[development][username], $database[development][password]);
-  # }
-
   class {
     'postgresql::server::postgis':
       package_name => 'postgresql-9.3-postgis-2.1';
   }
+
+  # Needed for hstore extension.
+  class { 'postgresql::server::contrib': }
+
+  # Needed for pg gem.
+  class { 'postgresql::lib::devel': }
 
   # Make the development database user.
   postgresql::server::role {
@@ -60,7 +58,6 @@
         password_hash => postgresql_password($database[test][username], $database[test][password]);
     }
   }
-
 
   # Setup database server access.
   postgresql::server::pg_hba_rule {
@@ -80,7 +77,6 @@
       auth_method => 'md5';
   }
 
-
   # Setup database server access for the test database user.
   if($database[test][username] != $database[development][username]) {
     postgresql::server::pg_hba_rule {
@@ -94,13 +90,15 @@
     }
   }
 
-  # Needed for hstore extension.
-  class { 'postgresql::server::contrib': }
-
-  # Needed for pg gem.
-  class { 'postgresql::lib::devel': }
-
-
+  # Make the databases.
+  postgresql::server::db {
+    $database[test][database]:
+      user     => $database[test][username],
+      password => postgresql_password($database[test][username], $database[test][password]);
+    $database[development][database]:
+      user     => $database[development][username],
+      password => postgresql_password($database[development][username], $database[development][password]);
+  }
 
   # ==========================
   # ruby stuff
